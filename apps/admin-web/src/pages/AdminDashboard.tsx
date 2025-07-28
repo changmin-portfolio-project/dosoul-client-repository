@@ -1,14 +1,28 @@
-import React from 'react';
-import { DosoulButton } from '@dosoul/ui';
+import { AdminPageLayout } from "@/components/common/layout/AdminPageLayout";
+import { AdminDashboardBody } from "@/components/manage/dashboard/body/AdminDashboardBody";
+import React, { useEffect, useState } from "react";
 
 export const AdminDashboard: React.FC = () => {
+  const [init, setInit] = useState<boolean>(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    const timeRef = setTimeout(() => {
+      setInit(true);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeRef);
+    };
+  }, []);
+
   return (
-    <div>
-      <h2>관리자 대시보드</h2>
-      <div>
-        <DosoulButton>사용자 관리</DosoulButton>
-        <DosoulButton variant="secondary">방 관리</DosoulButton>
-      </div>
-    </div>
+    <AdminPageLayout
+      children={
+        <AdminDashboardBody
+          style={{ opacity: init ? 1 : 0, transition: `opacity 0.3s ease-in` }}
+        />
+      }
+    />
   );
 };
