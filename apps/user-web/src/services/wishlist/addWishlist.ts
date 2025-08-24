@@ -1,15 +1,25 @@
-import axios from 'axios';
+import { API_V1_PATH } from "@root/packages/consts/src";
+import { privateApi } from "@root/packages/services/src";
+import { WishlistItem } from "./getWishlist";
 
 export interface AddWishlistRequest {
   roomId: string;
 }
 
 export interface AddWishlistResponse {
-  success: boolean;
+  data: WishlistItem;
+  statusCode: string;
   message: string;
 }
 
-export const addWishlist = async (data: AddWishlistRequest): Promise<AddWishlistResponse> => {
-  const response = await axios.post('/api/wishlist', data);
+export const addWishlist = async (
+  roomId: string,
+): Promise<AddWishlistResponse> => {
+  const response = await privateApi.post<AddWishlistResponse>(
+    `${API_V1_PATH}/wishlist`,
+    {
+      roomId,
+    },
+  );
   return response.data;
 };
