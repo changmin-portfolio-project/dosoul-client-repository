@@ -1,4 +1,4 @@
-import { LOGIN_EMAIL_API_PATH } from "@dosoul/consts";
+import { ADMIN_LOGIN_EMAIL_API_PATH } from "@dosoul/consts";
 import { setAccessTokenToLocalStorage } from "@dosoul/utils";
 import { api } from "../base/base";
 
@@ -7,11 +7,11 @@ interface EmailLoginReq {
   password: string;
 }
 
-export const postAuthLoginEmail = (
+export const postAdminAuthLoginEmail = (
   emailLoginReq: EmailLoginReq,
 ): Promise<string> => {
   return api
-    .post(LOGIN_EMAIL_API_PATH, emailLoginReq)
+    .post(ADMIN_LOGIN_EMAIL_API_PATH, emailLoginReq)
     .then(res => {
       const data = res.data.data;
 
