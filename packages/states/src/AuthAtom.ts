@@ -1,18 +1,12 @@
-import { atom } from 'recoil';
+// 예시: Recoil
+import { atom } from "recoil";
 
-export interface AuthState {
-  isAuthenticated: boolean;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-  } | null;
-}
+export const loginModalStateAtom = atom({
+  key: "loginModalState",
+  default: false,
+});
 
-export const authAtom = atom<AuthState>({
-  key: 'authAtom',
-  default: {
-    isAuthenticated: false,
-    user: null,
-  },
+export const signupModalStateAtom = atom({
+  key: "signupModalState",
+  default: false,
 });
