@@ -1,15 +1,21 @@
-import React from 'react';
-import { RecoilRoot } from 'recoil';
-import { DosoulButton } from '@dosoul/ui';
+import { WindowSizeListener } from "@dosoul/hooks";
+import "@root/styles/keyframes.css";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { RecoilRoot } from "recoil";
+import { Reset } from "styled-reset";
+import "./App.css";
+import AppRouter from "./AppRouter";
+import queryClient from "./config/QueryClientConfig";
 
 function App() {
   return (
-    <RecoilRoot>
-      <div>
-        <h1>두솔 - 관리자 웹</h1>
-        <DosoulButton variant="secondary">관리자 로그인</DosoulButton>
-      </div>
-    </RecoilRoot>
+    <QueryClientProvider client={queryClient}>
+      <RecoilRoot>
+        <Reset />
+        <AppRouter />
+        <WindowSizeListener />
+      </RecoilRoot>
+    </QueryClientProvider>
   );
 }
 
