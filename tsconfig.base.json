@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "typeRoots": ["packages/types", "node_modules/@types"]
+  },
+  "include": ["packages/types"]
+}
