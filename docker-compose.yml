@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  admin-web:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_ADMIN_REPOSITORY}:${IMAGE_TAG:-latest}
+    container_name: ${ECR_ADMIN_REPOSITORY}
+    ports:
+      - "3001:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dusol-network
+
+  user-web:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_USER_REPOSITORY}:${IMAGE_TAG:-latest}
+    container_name: ${ECR_USER_REPOSITORY}
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dusol-network
+
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: dusol-nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - admin-web
+      - user-web
+    restart: unless-stopped
+    networks:
+      - dusol-network
+
+networks:
+  dusol-network:
+    driver: bridge
+
+volumes:
+  nginx_ssl:
+    external: true
