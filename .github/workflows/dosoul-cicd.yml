@@ -1,0 +1,136 @@
+name: Build and Deploy to ECR
+
+on:
+  pull_request:
+    branches:
+      - master
+    types:
+      - closed
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+  ECR_ADMIN_REPOSITORY: ${{ secrets.ECR_ADMIN_REPOSITORY }}
+  ECR_USER_REPOSITORY: ${{ secrets.ECR_USER_REPOSITORY }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create admin .env.production file
+        run: |
+          mkdir -p apps/admin-web
+          cat > apps/admin-web/.env.production << EOF
+          VITE_SERVER_PATH=${{ secrets.ADMIN_SERVER_PATH }}
+          VITE_SERVER_API_URL=${{ secrets.ADMIN_SERVER_API_URL }}
+          VITE_APP_ENV=production
+          VITE_APP_TYPE=admin
+          VITE_ROLE_TYPE=${{ secrets.ADMIN_ROLE_TYPE }}
+          EOF
+
+      - name: Create user .env.production file
+        run: |
+          mkdir -p apps/user-web
+          cat > apps/user-web/.env.production << EOF
+          VITE_SERVER_PATH=${{ secrets.USER_SERVER_PATH }}
+          VITE_SERVER_API_URL=${{ secrets.USER_SERVER_API_URL }}
+          VITE_APP_ENV=production
+          VITE_APP_TYPE=user
+          EOF
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata for admin
+        id: meta-admin
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ env.ECR_ADMIN_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Extract metadata for user
+        id: meta-user
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ env.ECR_USER_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push admin image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.admin
+          push: true
+          tags: ${{ steps.meta-admin.outputs.tags }}
+          labels: ${{ steps.meta-admin.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push user image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.user
+          push: true
+          tags: ${{ steps.meta-user.outputs.tags }}
+          labels: ${{ steps.meta-user.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ${{ secrets.SERVICE_DIR }}
+
+            # Login to ECR
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+            # Set environment variables
+            export AWS_ACCOUNT_ID=${{ env.AWS_ACCOUNT_ID }}
+            export AWS_REGION=${{ env.AWS_REGION }}
+            export IMAGE_TAG=latest
+            export ECR_ADMIN_REPOSITORY=${{ env.ECR_ADMIN_REPOSITORY }}
+            export ECR_USER_REPOSITORY=${{ env.ECR_USER_REPOSITORY }}
+
+            # Pull latest images
+            sudo -E docker compose pull
+
+            # Start new containers
+            sudo -E docker compose up -d
+
+            # Clean up unused images
+            sudo -E docker image prune -f
